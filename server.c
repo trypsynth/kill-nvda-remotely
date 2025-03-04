@@ -40,6 +40,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 		ExitProcess(1);
 	}
 	char szPort[16] = {0};
+	char szPacket[32] = {0};
 	char szConfigFile[MAX_PATH] = {0};
 	if (GetCurrentDirectory(sizeof(szConfigFile), szConfigFile) == 0) {
 		MessageBox(NULL, "Failed to get the current working directory", "Error", MB_OK | MB_ICONERROR);
@@ -52,6 +53,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 	if (GetPrivateProfileString("Settings", "Port", NULL, szPort, sizeof(szPort), szConfigFile) == 0) {
 		MessageBox(NULL, "Invalid or missing configuration file", "Error", MB_OK | MB_ICONERROR);
 		ExitProcess(1);
+	}
+	if (GetPrivateProfileString("Settings", "Packet", NULL, szPacket, sizeof(szPacket), szConfigFile) == 0) {
+		strncpy(szPacket, "kill", sizeof(szPacket));
 	}
 	WSADATA wsaData;
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
@@ -82,6 +86,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 	}
 	MSG msg;
 	while (1) {
+		Sleep(5);
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 			if (msg.message == WM_QUIT) {
 				closesocket(hServerSocket);
@@ -108,7 +113,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 			int nBytesReceived;
 			while ((nBytesReceived = recv(hClientSocket, szBuffer, sizeof(szBuffer) - 1, 0)) > 0) {
 				szBuffer[nBytesReceived] = '\0';
-				if (strcmp(szBuffer, "kill") == 0) system("start nvda -r");
+				if (strcmp(szBuffer, szPacket) == 0) system("start nvda -r");
 			}
 			closesocket(hClientSocket);
 		}
