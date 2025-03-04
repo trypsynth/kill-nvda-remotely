@@ -6,6 +6,7 @@
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow) {
 	char szHost[256] = {0};;
 	char szPort[16] = {0};
+	char szPacket[32] = {0};
 	char szConfigFile[MAX_PATH] = {0};
 	if (GetCurrentDirectory(sizeof(szConfigFile), szConfigFile) == 0) {
 		MessageBox(NULL, "Failed to get the current working directory", "Error", MB_OK | MB_ICONERROR);
@@ -19,7 +20,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 		MessageBox(NULL, "Invalid or missing configuration file", "Error", MB_OK | MB_ICONERROR);
 		ExitProcess(1);
 	}
-	const char* szMessage = "kill";
+	if (GetPrivateProfileString("Settings", "Packet", NULL, szPacket, sizeof(szPacket), szConfigFile) == 0) {
+		strncpy(szPacket, "kill", sizeof(szPacket));
+	}
 	WSADATA wsaData;
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
 		MessageBox(NULL, "Failed to initialize Winsock", "Error", MB_OK | MB_ICONERROR);
@@ -47,7 +50,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 		WSACleanup();
 		ExitProcess(1);
 	}
-	if (send(hClientSocket, szMessage, strlen(szMessage), 0) == SOCKET_ERROR) {
+	if (send(hClientSocket, szPacket, strlen(szPacket), 0) == SOCKET_ERROR) {
 		MessageBox(NULL, "Failed to send data", "Error", MB_OK | MB_ICONERROR);
 	}
 	closesocket(hClientSocket);
