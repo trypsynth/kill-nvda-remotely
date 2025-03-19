@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25.0)
-project(kill_nvda_remotely)
+project(kill_nvda_remotely LANGUAGES C)
 
 add_executable(client WIN32 client.c)
 target_link_libraries(client PRIVATE ws2_32 shlwapi)
