@@ -1,5 +1,0 @@
-C:/Users/Quin/git/kill-nvda-remotely/build/CMakeFiles/client.dir
-C:/Users/Quin/git/kill-nvda-remotely/build/CMakeFiles/server.dir
-C:/Users/Quin/git/kill-nvda-remotely/build/CMakeFiles/package.dir
-C:/Users/Quin/git/kill-nvda-remotely/build/CMakeFiles/edit_cache.dir
-C:/Users/Quin/git/kill-nvda-remotely/build/CMakeFiles/rebuild_cache.dir
