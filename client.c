@@ -3,7 +3,7 @@
 #include <winsock2.h>
 #include <shlwapi.h>
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow) {
+int WINAPI WinMain(HINSTANCE, HINSTANCE, PSTR, int) {
 	char szHost[256] = {0};;
 	char szPort[16] = {0};
 	char szPacket[32] = {0};

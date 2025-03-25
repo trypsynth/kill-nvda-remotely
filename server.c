@@ -11,7 +11,7 @@
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void MakeSingleInstance(const char* AppID);
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow) {
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, PSTR, int) {
 	MakeSingleInstance("KillNVDARemotely_Server");
 	WNDCLASSEX wc = {0};
 	wc.cbSize = sizeof(WNDCLASSEX);
@@ -139,7 +139,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 void MakeSingleInstance(const char* AppID) {
 	char mutexName[128];
 	snprintf(mutexName, sizeof(mutexName), "%s_IsAlreadyRunning", AppID);
-	HANDLE hMutex = CreateMutex(NULL, TRUE, mutexName);
+	CreateMutex(NULL, TRUE, mutexName);
 	if (GetLastError() == ERROR_ALREADY_EXISTS) {
 		MessageBox(NULL, "Another instance is already running", "Error", MB_ICONERROR | MB_OK);
 		ExitProcess(0);
