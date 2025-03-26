@@ -1,67 +1,100 @@
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
-#include "server.hpp"
 #include <stdexcept>
+#include <string>
 #include <vector>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
+#include <winsock2.h>
 
-winsock::winsock() {
-	WSADATA wsa_data;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) throw std::runtime_error{"WSAStartup failed"};
-}
+constexpr UINT ID_TRAY_ICON = 101;
+constexpr UINT ID_TRAY_CALLBACK = WM_USER + 1;
 
-winsock::~winsock() {
-	WSACleanup();
-}
+LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
+std::string get_config_value(const std::string& file, const std::string& section, const std::string& key, const std::string& default_value);
+std::string get_config_file();
 
-server_socket::server_socket(uint16_t port) {
-	handle_ = socket(AF_INET, SOCK_STREAM, 0);
-	if (handle_ == INVALID_SOCKET) throw std::runtime_error{"Failed to create socket"};
-	sockaddr_in server_address{};
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(port);
-	server_address.sin_addr.s_addr = INADDR_ANY;
-	if (bind(handle_, reinterpret_cast<sockaddr*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
-		closesocket(handle_);
-		throw std::runtime_error{"Bind failed"};
+class server_socket {
+public:
+	explicit server_socket(uint16_t port) {
+		handle_ = socket(AF_INET, SOCK_STREAM, 0);
+		if (handle_ == INVALID_SOCKET) throw std::runtime_error{"Failed to create socket"};
+		sockaddr_in server_address{};
+		server_address.sin_family = AF_INET;
+		server_address.sin_port = htons(port);
+		server_address.sin_addr.s_addr = INADDR_ANY;
+		if (bind(handle_, reinterpret_cast<sockaddr*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
+			closesocket(handle_);
+			throw std::runtime_error{"Bind failed"};
+		}
+		if (listen(handle_, SOMAXCONN) == SOCKET_ERROR) {
+			closesocket(handle_);
+			throw std::runtime_error{"Listen failed"};
+		}
 	}
-	if (listen(handle_, SOMAXCONN) == SOCKET_ERROR) {
+
+	~server_socket() {
 		closesocket(handle_);
-		throw std::runtime_error{"Listen failed"};
 	}
-}
 
-server_socket::~server_socket() {
-	closesocket(handle_);
-}
+	SOCKET accept_connection() const {
+		return accept(handle_, nullptr, nullptr);
+	}
 
-SOCKET server_socket::accept_connection() const {
-	return accept(handle_, nullptr, nullptr);
-}
+private:
+	SOCKET handle_;
+};
 
-tray_icon::tray_icon(HWND window) {
-	nid_.cbSize = sizeof(NOTIFYICONDATA);
-	nid_.hWnd = window;
-	nid_.uID = ID_TRAY_ICON;
-	nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-	nid_.uCallbackMessage = ID_TRAY_CALLBACK;
-	nid_.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-	strcpy_s(nid_.szTip, "Kill NVDA Remotely Server");
-	if (!Shell_NotifyIcon(NIM_ADD, &nid_)) throw std::runtime_error{"Failed to create tray icon"};
-}
+class single_instance {
+public:
+	explicit single_instance(const std::string& app_id) {
+		std::string mutex_name = app_id + "_IsAlreadyRunning";
+		handle_ = CreateMutex(nullptr, TRUE, mutex_name.c_str());
+		if (GetLastError() == ERROR_ALREADY_EXISTS) throw std::runtime_error{"Another instance is already running"};
+	}
 
-tray_icon::~tray_icon() {
-	Shell_NotifyIcon(NIM_DELETE, &nid_);
-}
+	~single_instance() {
+		if (handle_) CloseHandle(handle_);
+	}
 
-single_instance::single_instance(const std::string& app_id) {
-	std::string mutex_name = app_id + "_IsAlreadyRunning";
-	handle_ = CreateMutex(nullptr, TRUE, mutex_name.c_str());
-	if (GetLastError() == ERROR_ALREADY_EXISTS) throw std::runtime_error{"Another instance is already running"};
-}
+private:
+	HANDLE handle_;
+};
 
-single_instance::~single_instance() {
-	if (handle_) CloseHandle(handle_);
-}
+class tray_icon {
+public:
+	explicit tray_icon(HWND window) {
+		nid_.cbSize = sizeof(NOTIFYICONDATA);
+		nid_.hWnd = window;
+		nid_.uID = ID_TRAY_ICON;
+		nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+		nid_.uCallbackMessage = ID_TRAY_CALLBACK;
+		nid_.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+		strcpy_s(nid_.szTip, "Kill NVDA Remotely Server");
+		if (!Shell_NotifyIcon(NIM_ADD, &nid_)) throw std::runtime_error{"Failed to create tray icon"};
+	}
+
+	~tray_icon() {
+		Shell_NotifyIcon(NIM_DELETE, &nid_);
+	}
+
+private:
+	NOTIFYICONDATA nid_{};
+};
+
+class winsock {
+public:
+	winsock() {
+		WSADATA wsa_data;
+		if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) throw std::runtime_error{"WSAStartup failed"};
+	}
+
+	~winsock() {
+		WSACleanup();
+	}
+};
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, PSTR, int) {
 	try {

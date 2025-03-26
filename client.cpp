@@ -1,23 +1,30 @@
-#define WIN32_LEAN_AND_MEAN
 #include <filesystem>
 #include <iostream>
+#include <optional>
+#include <string>
 #include <vector>
-#include <shlwapi.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "client.hpp"
+#include <winsock2.h>
 
 namespace fs = std::filesystem;
 
-winsock::winsock() {
-	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-		MessageBox(nullptr, "Failed to initialize Winsock", "Error", MB_OK | MB_ICONERROR);
-		ExitProcess(1);
-	}
-}
+std::optional<std::string> get_config_value(const std::string& filePath, const std::string& section, const std::string& key);
 
-winsock::~winsock() {
-	WSACleanup();
-}
+class winsock {
+public:
+	winsock() {
+		WSADATA wsa_data;
+		if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+			MessageBox(nullptr, "Failed to initialize Winsock", "Error", MB_OK | MB_ICONERROR);
+			ExitProcess(1);
+		}
+	}
+
+	~winsock() {
+		WSACleanup();
+	}
+};
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, PSTR, int) {
 	try {
