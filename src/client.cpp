@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <windows.h>
-#include <winsock2.h>
 #include "winsock.hpp"
 
 namespace fs = std::filesystem;
