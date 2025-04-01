@@ -4,10 +4,12 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shellapi.h>
 #include <winsock2.h>
+#include "server_socket.hpp"
+#include "single_instance.hpp"
+#include "winsock.hpp"
 
 constexpr UINT ID_TRAY_ICON = 101;
 constexpr UINT ID_TRAY_CALLBACK = WM_USER + 1;
@@ -15,53 +17,6 @@ constexpr UINT ID_TRAY_CALLBACK = WM_USER + 1;
 LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 std::string get_config_value(const std::string& file, const std::string& section, const std::string& key, const std::string& default_value);
 std::string get_config_file();
-
-class server_socket {
-public:
-	explicit server_socket(uint16_t port) {
-		handle_ = socket(AF_INET, SOCK_STREAM, 0);
-		if (handle_ == INVALID_SOCKET) throw std::runtime_error{"Failed to create socket"};
-		sockaddr_in server_address{};
-		server_address.sin_family = AF_INET;
-		server_address.sin_port = htons(port);
-		server_address.sin_addr.s_addr = INADDR_ANY;
-		if (bind(handle_, reinterpret_cast<sockaddr*>(&server_address), sizeof(server_address)) == SOCKET_ERROR) {
-			closesocket(handle_);
-			throw std::runtime_error{"Bind failed"};
-		}
-		if (listen(handle_, SOMAXCONN) == SOCKET_ERROR) {
-			closesocket(handle_);
-			throw std::runtime_error{"Listen failed"};
-		}
-	}
-
-	~server_socket() {
-		closesocket(handle_);
-	}
-
-	SOCKET accept_connection() const {
-		return accept(handle_, nullptr, nullptr);
-	}
-
-private:
-	SOCKET handle_;
-};
-
-class single_instance {
-public:
-	explicit single_instance(const std::string& app_id) {
-		std::string mutex_name = app_id + "_IsAlreadyRunning";
-		handle_ = CreateMutex(nullptr, TRUE, mutex_name.c_str());
-		if (GetLastError() == ERROR_ALREADY_EXISTS) throw std::runtime_error{"Another instance is already running"};
-	}
-
-	~single_instance() {
-		if (handle_) CloseHandle(handle_);
-	}
-
-private:
-	HANDLE handle_;
-};
 
 class tray_icon {
 public:
@@ -82,18 +37,6 @@ public:
 
 private:
 	NOTIFYICONDATA nid_{};
-};
-
-class winsock {
-public:
-	winsock() {
-		WSADATA wsa_data;
-		if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) throw std::runtime_error{"WSAStartup failed"};
-	}
-
-	~winsock() {
-		WSACleanup();
-	}
 };
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, PSTR, int) {
@@ -148,6 +91,17 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, PSTR, int) {
 LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 	switch (msg) {
 		case ID_TRAY_CALLBACK:
+			if (lp == WM_RBUTTONUP || lp == WM_LBUTTONUP) {
+				POINT cursor_pos;
+				GetCursorPos(&cursor_pos);
+				HMENU menu = CreatePopupMenu();
+				AppendMenu(menu, MF_STRING, 1, "Exit");
+				SetForegroundWindow(hwnd);
+				int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_NONOTIFY, cursor_pos.x, cursor_pos.y, 0, hwnd, nullptr);
+				DestroyMenu(menu);
+				if (cmd == 1) PostQuitMessage(0);
+			}
+			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			return 0;
